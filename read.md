@@ -145,7 +145,6 @@ nodejs-eks-deployment/
 │   └── nodeapp-k8s-project/
 │       ├── Chart.yaml             # Helm chart metadata
 │       ├── values.yaml            # Default values
-│       ├── values-production.yaml # Production values
 │       └── templates/
 │           ├── deployment.yaml    # Kubernetes Deployment
 │           ├── service.yaml       # Kubernetes Service
@@ -315,14 +314,13 @@ curl http://<LOAD_BALANCER_URL>:3000
 ### Triggering Deployments
 
 Deployments are triggered automatically on:
-- Push to `main` branch
-- Push to `develop` branch
-- Pull requests to `main` branch
+- Push to `main` or `staging` branch
+- Pull requests to `main` or `staging` branch
 
 ### Manual Deployment
 ```bash
 # Using GitHub CLI
-gh workflow run deploy.yml
+gh workflow run deploy-prod.yml
 
 # Or push a tag
 git tag v1.0.0
@@ -501,6 +499,6 @@ For issues or questions:
 This project is created for demonstration purposes.
 
 ---
-**Last Updated**: December 2024
+**Last Updated**: Aug 2025
 **Version**: 1.0.0
-**Author**: DevOps Team
+**Author**: Md Mehedi Hasan, DevOps & Backend Engineer, mehedi1055@gmail.com

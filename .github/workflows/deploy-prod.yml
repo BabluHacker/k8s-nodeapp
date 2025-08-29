@@ -1,11 +1,10 @@
-# .github/workflows/deploy.yml
+# .gitHub/workflows/deploy-prod.yml
 name: Build and Deploy to EKS
 
 on:
   push:
     branches:
       - main
-      - develop
   pull_request:
     branches:
       - main

@@ -1,9 +1,9 @@
-aws_region = "us-east-1"
-project_name = "nodejs-app"
-environment = "production"
-cluster_name = "nodejs-app-cluster"
-vpc_cidr = "10.0.0.0/16"
+aws_region          = "us-east-1"
+project_name        = "nodejs-app"
+environment         = "production"
+cluster_name        = "nodejs-app-cluster"
+vpc_cidr            = "10.0.0.0/16"
 node_instance_types = ["t3.medium"]
-desired_capacity = 2
-max_capacity = 4
-min_capacity = 1
+desired_capacity    = 2
+max_capacity        = 4
+min_capacity        = 1

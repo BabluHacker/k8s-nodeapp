@@ -1,7 +1,7 @@
 # terraform/outputs.tf
 
 output "cluster_name" { value = var.cluster_name }
-output "region"       { value = var.aws_region }
+output "region" { value = var.aws_region }
 
 output "configure_kubeconfig_cmd" {
   value = "aws eks update-kubeconfig --name ${var.cluster_name} --region ${var.aws_region}"

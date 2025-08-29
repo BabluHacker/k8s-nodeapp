@@ -83,7 +83,7 @@ resource "aws_subnet" "private" {
 
 # Elastic IP for NAT Gateway
 resource "aws_eip" "nat" {
-  count = 2
+  count  = 2
   domain = "vpc"
 
   tags = {

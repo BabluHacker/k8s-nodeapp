@@ -1,0 +1,37 @@
+
+Note: Objects have changed outside of Terraform
+
+Terraform detected the following changes made outside of Terraform since the
+last "terraform apply" which may have affected this plan:
+
+  # aws_eks_node_group.main has changed
+  ~ resource "aws_eks_node_group" "main" {
+        id              = "nodejs-app-cluster:nodejs-app-nodes"
+      + labels          = {}
+        tags            = {
+            "Name" = "nodejs-app-node-group"
+        }
+        # (14 unchanged attributes hidden)
+
+        # (2 unchanged blocks hidden)
+    }
+
+
+Unless you have made equivalent changes to your configuration, or ignored the
+relevant attributes using ignore_changes, the following plan may include
+actions to undo or respond to these changes.
+
+─────────────────────────────────────────────────────────────────────────────
+
+Changes to Outputs:
+  ~ node_groups               = {
+        id                     = "nodejs-app-cluster:nodejs-app-nodes"
+      ~ labels                 = null -> {}
+        tags                   = {
+            Name = "nodejs-app-node-group"
+        }
+        # (23 unchanged attributes hidden)
+    }
+
+You can apply this plan to save these new output values to the Terraform
+state, without changing any real infrastructure.

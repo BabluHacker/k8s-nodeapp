@@ -4,9 +4,9 @@
 replicaCount: 2
 
 image:
-  repository: YOUR_ECR_REGISTRY/nodejs-app/nodejs-app:latest
+  repository: "" #will be passed while deploying using github action
   pullPolicy: Always
-  tag: ""
+  tag: ""  #will be passed while deploying using github action
 
 imagePullSecrets: []
 nameOverride: ""

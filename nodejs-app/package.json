@@ -1,0 +1,14 @@
+{
+  "name": "nodejs-simple-app",
+  "version": "1.0.0",
+  "description": "Simple Node.js app for Kubernetes deployment task",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Candidate",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

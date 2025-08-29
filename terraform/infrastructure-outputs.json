@@ -1,0 +1,255 @@
+{
+  "cluster_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:eks:us-east-1:001016822886:cluster/nodejs-app-cluster"
+  },
+  "cluster_endpoint": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://C7C699AB6499C7322C76E29A69072183.gr7.us-east-1.eks.amazonaws.com"
+  },
+  "cluster_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "nodejs-app-cluster"
+  },
+  "cluster_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "nodejs-app-cluster"
+  },
+  "cluster_security_group_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "sg-0996c1daabf6d649d"
+  },
+  "configure_kubeconfig_cmd": {
+    "sensitive": false,
+    "type": "string",
+    "value": "aws eks update-kubeconfig --name nodejs-app-cluster --region us-east-1"
+  },
+  "ecr_repository_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "001016822886.dkr.ecr.us-east-1.amazonaws.com/nodejs-app/nodejs-app"
+  },
+  "kubectl_config": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "cluster_name": "string",
+        "endpoint": "string",
+        "region": "string"
+      }
+    ],
+    "value": {
+      "cluster_name": "nodejs-app-cluster",
+      "endpoint": "https://C7C699AB6499C7322C76E29A69072183.gr7.us-east-1.eks.amazonaws.com",
+      "region": "us-east-1"
+    }
+  },
+  "node_groups": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "ami_type": "string",
+        "arn": "string",
+        "capacity_type": "string",
+        "cluster_name": "string",
+        "disk_size": "number",
+        "force_update_version": "bool",
+        "id": "string",
+        "instance_types": [
+          "list",
+          "string"
+        ],
+        "labels": [
+          "map",
+          "string"
+        ],
+        "launch_template": [
+          "list",
+          [
+            "object",
+            {
+              "id": "string",
+              "name": "string",
+              "version": "string"
+            }
+          ]
+        ],
+        "node_group_name": "string",
+        "node_group_name_prefix": "string",
+        "node_repair_config": [
+          "list",
+          [
+            "object",
+            {
+              "enabled": "bool"
+            }
+          ]
+        ],
+        "node_role_arn": "string",
+        "release_version": "string",
+        "remote_access": [
+          "list",
+          [
+            "object",
+            {
+              "ec2_ssh_key": "string",
+              "source_security_group_ids": [
+                "set",
+                "string"
+              ]
+            }
+          ]
+        ],
+        "resources": [
+          "list",
+          [
+            "object",
+            {
+              "autoscaling_groups": [
+                "list",
+                [
+                  "object",
+                  {
+                    "name": "string"
+                  }
+                ]
+              ],
+              "remote_access_security_group_id": "string"
+            }
+          ]
+        ],
+        "scaling_config": [
+          "list",
+          [
+            "object",
+            {
+              "desired_size": "number",
+              "max_size": "number",
+              "min_size": "number"
+            }
+          ]
+        ],
+        "status": "string",
+        "subnet_ids": [
+          "set",
+          "string"
+        ],
+        "tags": [
+          "map",
+          "string"
+        ],
+        "tags_all": [
+          "map",
+          "string"
+        ],
+        "taint": [
+          "set",
+          [
+            "object",
+            {
+              "effect": "string",
+              "key": "string",
+              "value": "string"
+            }
+          ]
+        ],
+        "timeouts": [
+          "object",
+          {
+            "create": "string",
+            "delete": "string",
+            "update": "string"
+          }
+        ],
+        "update_config": [
+          "list",
+          [
+            "object",
+            {
+              "max_unavailable": "number",
+              "max_unavailable_percentage": "number"
+            }
+          ]
+        ],
+        "version": "string"
+      }
+    ],
+    "value": {
+      "ami_type": "AL2_x86_64",
+      "arn": "arn:aws:eks:us-east-1:001016822886:nodegroup/nodejs-app-cluster/nodejs-app-nodes/f2cc7a64-d850-c916-a267-e64c2e7f8dd7",
+      "capacity_type": "ON_DEMAND",
+      "cluster_name": "nodejs-app-cluster",
+      "disk_size": 20,
+      "force_update_version": null,
+      "id": "nodejs-app-cluster:nodejs-app-nodes",
+      "instance_types": [
+        "t3.medium"
+      ],
+      "labels": {},
+      "launch_template": [],
+      "node_group_name": "nodejs-app-nodes",
+      "node_group_name_prefix": "",
+      "node_repair_config": [],
+      "node_role_arn": "arn:aws:iam::001016822886:role/nodejs-app-eks-node-group-role",
+      "release_version": "1.29.15-20250821",
+      "remote_access": [],
+      "resources": [
+        {
+          "autoscaling_groups": [
+            {
+              "name": "eks-nodejs-app-nodes-f2cc7a64-d850-c916-a267-e64c2e7f8dd7"
+            }
+          ],
+          "remote_access_security_group_id": ""
+        }
+      ],
+      "scaling_config": [
+        {
+          "desired_size": 2,
+          "max_size": 4,
+          "min_size": 1
+        }
+      ],
+      "status": "ACTIVE",
+      "subnet_ids": [
+        "subnet-0114833547b90c0b1",
+        "subnet-03c6bb5d51acc3ea0"
+      ],
+      "tags": {
+        "Name": "nodejs-app-node-group"
+      },
+      "tags_all": {
+        "Environment": "production",
+        "ManagedBy": "terraform",
+        "Name": "nodejs-app-node-group",
+        "Project": "nodejs-app"
+      },
+      "taint": [],
+      "timeouts": null,
+      "update_config": [
+        {
+          "max_unavailable": 1,
+          "max_unavailable_percentage": 0
+        }
+      ],
+      "version": "1.29"
+    }
+  },
+  "region": {
+    "sensitive": false,
+    "type": "string",
+    "value": "us-east-1"
+  },
+  "vpc_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vpc-06ee30dfdd58824d1"
+  }
+}

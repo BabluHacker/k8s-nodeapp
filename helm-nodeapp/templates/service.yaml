@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nodeapp-k8s-project.fullname" . }}
+  labels:
+    {{- include "nodeapp-k8s-project.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "nodeapp-k8s-project.selectorLabels" . | nindent 4 }}

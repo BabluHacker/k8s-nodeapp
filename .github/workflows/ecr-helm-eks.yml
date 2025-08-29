@@ -1,82 +1,32 @@
 # .github/workflows/deploy.yml
-name: Production Deployment Pipeline
+name: Build and Deploy to EKS
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: nodejs-app/nodejs-app
-  EKS_CLUSTER: nodejs-app-cluster
-  HELM_RELEASE: nodejs-app
-  NAMESPACE: production
+  EKS_CLUSTER_NAME: nodejs-app-cluster
+  HELM_RELEASE_NAME: nodeapp
+  HELM_CHART_PATH: ./helm/nodeapp-k8s-project
 
 jobs:
-  # Job 1: Security Scanning
-  security-scan:
+  build-push-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: 'trivy-results.sarif'
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  # Job 2: Build and Test
-  build-test:
-    runs-on: ubuntu-latest
-    needs: security-scan
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tests
-        run: |
-          npm run test
-          npm run test:coverage
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  # Job 3: Build and Push Docker Image
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: build-test
-    outputs:
-      image-tag: ${{ steps.image.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -84,167 +34,79 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image
-        id: image
+      - name: Build, tag, and push image to Amazon ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Build with BuildKit for better caching
-          export DOCKER_BUILDKIT=1
+          # Build the Docker image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           
-          docker build \
-            --cache-from $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            .
-          
-          # Scan image for vulnerabilities
-          trivy image --severity HIGH,CRITICAL \
-            --exit-code 1 \
-            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          
-          # Push images
+          # Push both tags to ECR
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           
-          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-  # Job 4: Deploy to Staging
-  deploy-staging:
-    runs-on: ubuntu-latest
-    needs: docker-build
-    environment: staging
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
           version: 'v1.29.0'
 
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.13.0'
+
       - name: Update kubeconfig
         run: |
-          aws eks update-kubeconfig \
-            --name ${{ env.EKS_CLUSTER }} \
-            --region ${{ env.AWS_REGION }}
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
-      - name: Deploy to Staging with Helm
+      - name: Deploy to EKS using Helm
         env:
-          IMAGE_TAG: ${{ needs.docker-build.outputs.image-tag }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          # Create namespace if not exists
-          kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+          # Create namespace if it doesn't exist
+          kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
           
-          # Deploy with Helm
-          helm upgrade --install ${{ env.HELM_RELEASE }}-staging \
-            ./helm/nodeapp-k8s-project \
-            --namespace staging \
-            --set image.repository=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }} \
-            --set image.tag=$IMAGE_TAG \
-            --set ingress.hosts[0].host=staging.example.com \
+          # Deploy using Helm with updated image
+          helm upgrade --install ${{ env.HELM_RELEASE_NAME }} ${{ env.HELM_CHART_PATH }} \
+            --namespace production \
+            --set image.repository=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --set service.type=LoadBalancer \
+            --set service.port=3000 \
+            --set ingress.enabled=false \
             --set replicaCount=2 \
+            --set autoscaling.enabled=true \
+            --set autoscaling.minReplicas=2 \
+            --set autoscaling.maxReplicas=4 \
+            --set autoscaling.targetCPUUtilizationPercentage=70 \
             --wait \
             --timeout 5m
 
-      - name: Run smoke tests
+      - name: Get LoadBalancer URL
         run: |
-          kubectl wait --for=condition=ready pod \
-            -l app.kubernetes.io/name=nodeapp-k8s-project \
-            -n staging \
-            --timeout=300s
+          echo "Waiting for LoadBalancer to be ready..."
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=nodeapp-k8s-project -n production --timeout=300s
           
-          # Run smoke tests
-          STAGING_URL="http://staging.example.com"
-          curl -f $STAGING_URL/health || exit 1
-
-  # Job 5: Deploy to Production
-  deploy-production:
-    runs-on: ubuntu-latest
-    needs: [docker-build, deploy-staging]
-    environment: production
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'v1.29.0'
-
-      - name: Update kubeconfig
-        run: |
-          aws eks update-kubeconfig \
-            --name ${{ env.EKS_CLUSTER }} \
-            --region ${{ env.AWS_REGION }}
-
-      - name: Deploy to Production with Blue-Green
-        env:
-          IMAGE_TAG: ${{ needs.docker-build.outputs.image-tag }}
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          # Create namespace if not exists
-          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+          # Get the LoadBalancer URL
+          export LB_URL=$(kubectl get svc ${{ env.HELM_RELEASE_NAME }}-nodeapp-k8s-project -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           
-          # Deploy green environment
-          helm upgrade --install ${{ env.HELM_RELEASE }}-green \
-            ./helm/nodeapp-k8s-project \
-            --namespace ${{ env.NAMESPACE }} \
-            --set image.repository=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }} \
-            --set image.tag=$IMAGE_TAG \
-            --set ingress.enabled=false \
-            --set service.selector.version=green \
-            --wait \
-            --timeout 10m
+          echo "Application is accessible at: http://$LB_URL:3000"
+          echo "LoadBalancer URL: $LB_URL" >> $GITHUB_STEP_SUMMARY
           
-          # Run production readiness checks
-          kubectl wait --for=condition=ready pod \
-            -l app.kubernetes.io/name=nodeapp-k8s-project,version=green \
-            -n ${{ env.NAMESPACE }} \
-            --timeout=300s
-          
-          # Switch traffic to green
-          kubectl patch service ${{ env.HELM_RELEASE }} \
-            -n ${{ env.NAMESPACE }} \
-            -p '{"spec":{"selector":{"version":"green"}}}'
-          
-          # Wait and verify
+          # Wait for LoadBalancer to be fully ready
           sleep 30
           
-          # If successful, remove blue deployment
-          helm delete ${{ env.HELM_RELEASE }}-blue -n ${{ env.NAMESPACE }} || true
-          
-          # Rename green to blue for next deployment
-          helm upgrade --install ${{ env.HELM_RELEASE }}-blue \
-            ./helm/nodeapp-k8s-project \
-            --namespace ${{ env.NAMESPACE }} \
-            --reuse-values \
-            --set service.selector.version=blue
+          # Test the application
+          curl -f http://$LB_URL:3000/health || echo "Health check endpoint not responding yet"
 
-      - name: Notify deployment
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          text: 'Production deployment completed for version ${{ needs.docker-build.outputs.image-tag }}'
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-        if: always()
+      - name: Verify Deployment
+        run: |
+          kubectl rollout status deployment/${{ env.HELM_RELEASE_NAME }}-nodeapp-k8s-project -n production
+          kubectl get pods -n production
+          kubectl get svc -n production

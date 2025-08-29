@@ -14,6 +14,7 @@
 - [Troubleshooting](#troubleshooting)
 - [Assumptions](#assumptions)
 
+
 ## 🏗️ Architecture Overview
 
 This project implements a production-ready infrastructure for a Node.js application deployed on Amazon EKS (Elastic Kubernetes Service) with a fully automated CI/CD pipeline.
@@ -240,6 +241,10 @@ terraform apply -auto-approve
 # Save outputs
 terraform output > terraform-outputs.txt
 ```
+or run 
+```angular2html
+bash build.sh
+```
 
 ### Step 5: Configure kubectl
 ```bash
@@ -297,6 +302,13 @@ kubectl get svc -n production
 # Access application
 curl http://<LOAD_BALANCER_URL>:3000
 ```
+### Step 9: Test Deployment
+```bash
+# show checklist for the deployed instances
+bash test-deployment.sh
+```
+
+
 
 ## 🔄 CI/CD Pipeline
 
@@ -329,31 +341,149 @@ git push origin v1.0.0
 
 ## 📊 Monitoring and Logging
 
-### CloudWatch Container Insights
+
+### CloudWatch Logging (Pre-configured)
+
+The EKS cluster has CloudWatch logging automatically enabled via Terraform with the following log types:
+- **API Server logs**: All API server requests
+- **Audit logs**: Audit trail of all requests
+- **Authenticator logs**: Authentication attempts
+- **Controller Manager logs**: Controller operations
+- **Scheduler logs**: Pod scheduling decisions
+
+### Viewing Cluster Logs
+
 ```bash
-# Enable Container Insights
-aws eks update-cluster-config \
-    --name nodejs-app-cluster \
-    --logging '{"clusterLogging":[{"types":["api","audit","authenticator","controllerManager","scheduler"],"enabled":true}]}'
+# View real-time logs
+aws logs tail /aws/eks/nodejs-app-cluster/cluster --follow
+
+# View logs from specific time period
+aws logs tail /aws/eks/nodejs-app-cluster/cluster --since 1h
+
+# Filter for errors
+aws logs filter-log-events \
+    --log-group-name /aws/eks/nodejs-app-cluster/cluster \
+    --filter-pattern "ERROR"
+
+# View in AWS Console
+# Navigate to CloudWatch → Log Groups → /aws/eks/nodejs-app-cluster/cluster
 ```
 
-### Application Metrics
-- CPU Utilization
-- Memory Usage
-- Request Count
-- Response Time
-- Error Rate
+### Application Logs
 
-### Viewing Logs
 ```bash
 # View pod logs
 kubectl logs -n production -l app.kubernetes.io/name=nodeapp-k8s-project
 
-# Stream logs
+# Stream logs in real-time
 kubectl logs -n production -l app.kubernetes.io/name=nodeapp-k8s-project -f
 
-# View previous container logs
+# View logs from all pods
+kubectl logs -n production -l app.kubernetes.io/name=nodeapp-k8s-project --all-containers=true
+
+# View previous container logs (if pod restarted)
 kubectl logs -n production <pod-name> --previous
+```
+
+### Metrics Available
+
+#### Cluster Metrics (via CloudWatch)
+- Node CPU and Memory utilization
+- Pod count and status
+- Network throughput
+- Disk usage
+
+#### Application Metrics (via Kubernetes Metrics Server)
+- Pod CPU usage
+- Pod Memory usage
+- Request rate
+- Response times
+- Error rates
+
+### Container Insights (Optional Enhancement)
+
+For advanced monitoring, Container Insights can be enabled to provide:
+- Container-level performance metrics
+- Automatic dashboard creation
+- Log aggregation and analysis
+- Performance anomaly detection
+
+To enable Container Insights:
+```bash
+# Use eksctl (if available)
+eksctl utils update-cluster-logging \
+    --enable-types all \
+    --region us-east-1 \
+    --cluster nodejs-app-cluster
+
+# Or use the provided setup script
+./scripts/setup-container-insights.sh
+```
+
+### Monitoring Best Practices Implemented
+
+1. **Log Retention**: 7-day retention policy for cost optimization
+2. **Log Types**: All critical log types enabled
+3. **Resource Metrics**: HPA configured to monitor CPU utilization
+4. **Health Checks**: Liveness and readiness probes for application health
+5. **Audit Trail**: Audit logs enabled for compliance
+
+### Accessing Monitoring Dashboards
+
+1. **CloudWatch Dashboards**:
+   ```
+   https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:
+   ```
+
+2. **EKS Console**:
+   ```
+   https://console.aws.amazon.com/eks/home?region=us-east-1#/clusters/nodejs-app-cluster
+   ```
+
+3. **Kubernetes Dashboard** (Optional):
+   ```bash
+   # Deploy Kubernetes Dashboard
+   kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
+   
+   # Create admin user and get token
+   kubectl create serviceaccount admin-user -n kubernetes-dashboard
+   kubectl create clusterrolebinding admin-user --clusterrole=cluster-admin --serviceaccount=kubernetes-dashboard:admin-user
+   kubectl -n kubernetes-dashboard create token admin-user
+   
+   # Start proxy
+   kubectl proxy
+   
+   # Access at: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/
+   ```
+
+### Alert Configuration (Recommended)
+
+Create CloudWatch alarms for critical metrics:
+
+```bash
+# High CPU utilization alarm
+aws cloudwatch put-metric-alarm \
+    --alarm-name "EKS-HighCPU" \
+    --alarm-description "Alert when CPU exceeds 80%" \
+    --metric-name CPUUtilization \
+    --namespace AWS/EKS \
+    --statistic Average \
+    --period 300 \
+    --threshold 80 \
+    --comparison-operator GreaterThanThreshold \
+    --evaluation-periods 2
+
+# Pod failure alarm
+aws cloudwatch put-metric-alarm \
+    --alarm-name "EKS-PodFailures" \
+    --alarm-description "Alert when pods are failing" \
+    --metric-name pod_status_failed \
+    --namespace ContainerInsights \
+    --statistic Sum \
+    --period 300 \
+    --threshold 1 \
+    --comparison-operator GreaterThanThreshold \
+    --evaluation-periods 1
 ```
 
 ## 🔒 Security Considerations
@@ -496,7 +626,7 @@ For issues or questions:
 
 ## 📄 License
 
-This project is created for demonstration purposes.
+This project is created for demonstration purposes regarding Enosis DevOps Assessment.
 
 ---
 **Last Updated**: Aug 2025
